@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.*
 import com.example.ui.theme.MyApplicationTheme
+import com.example.database.Ticket
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,16 +46,23 @@ class MainActivity : ComponentActivity() {
             MyApplicationTheme {
                 val mainViewModel: MainViewModel = viewModel()
                 val isActivated by mainViewModel.isActivated.collectAsState()
+                val settings by mainViewModel.settingsState.collectAsState()
+                val lang = settings["language"] ?: "ar"
+                val layoutDirection = if (lang == "fr") androidx.compose.ui.unit.LayoutDirection.Ltr else androidx.compose.ui.unit.LayoutDirection.Rtl
 
-                if (!isActivated) {
-                    ActivationScreen(
-                        viewModel = mainViewModel,
-                        onActivationSuccess = {
-                            // Handled reactive flow automatic
-                        }
-                    )
-                } else {
-                    AppMainLayout(mainViewModel)
+                androidx.compose.runtime.CompositionLocalProvider(
+                    androidx.compose.ui.platform.LocalLayoutDirection provides layoutDirection
+                ) {
+                    if (!isActivated) {
+                        ActivationScreen(
+                            viewModel = mainViewModel,
+                            onActivationSuccess = {
+                                // Handled reactive flow automatic
+                            }
+                        )
+                    } else {
+                        AppMainLayout(mainViewModel)
+                    }
                 }
             }
         }
@@ -62,7 +70,15 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun HeaderBrandBar() {
+fun HeaderBrandBar(
+    viewModel: MainViewModel,
+    onNotificationClick: () -> Unit
+) {
+    val tickets by viewModel.allTicketsState.collectAsState()
+    val partNeededCount = remember(tickets) { tickets.count { it.status == "PART_NEEDED" } }
+    val settings by viewModel.settingsState.collectAsState()
+    val lang = settings["language"] ?: "ar"
+
     Surface(
         color = MaterialTheme.colorScheme.surface,
         modifier = Modifier
@@ -91,56 +107,137 @@ fun HeaderBrandBar() {
                 )
             }
 
-            // Right: Logo + Brand Name
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.End,
-                modifier = Modifier.wrapContentWidth()
+            // Center: Notification icon with Badge in the middle of Top Bar
+            Box(
+                modifier = Modifier
+                    .wrapContentSize(),
+                contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    modifier = Modifier.padding(end = 12.dp)
-                ) {
-                    Text(
-                        text = "صيانة برو",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1D1B20)
-                    )
-                    Text(
-                        text = "نسخة مفعلة (Premium)",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF16A34A) // Premium green
+                IconButton(onClick = onNotificationClick) {
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = com.example.utils.Localization.get("nav_notifications", lang),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(26.dp)
                     )
                 }
 
-                // Custom App Icon styled precisely with Vibrant gradient
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(Color(0xFF6750A4), Color(0xFF9B88D6))
-                            )
-                        )
-                        .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
-                        .shadow(1.dp, RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    // Custom micro repairs screw symbol
+                if (partNeededCount > 0) {
                     Box(
                         modifier = Modifier
-                            .size(20.dp)
-                            .border(2.dp, Color.White, RoundedCornerShape(2.dp)),
+                            .align(Alignment.TopEnd)
+                            .offset(x = 2.dp, y = (-2).dp)
+                            .background(Color(0xFFEF4444), CircleShape)
+                            .size(17.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = partNeededCount.toString(),
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            // Right: Logo + Brand Name
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = if (lang == "fr") Arrangement.Start else Arrangement.End,
+                modifier = Modifier.wrapContentWidth()
+            ) {
+                if (lang == "fr") {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(Color(0xFF6750A4), Color(0xFF9B88D6))
+                                )
+                            )
+                            .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                            .shadow(1.dp, RoundedCornerShape(12.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(width = 2.dp, height = 12.dp)
-                                .background(Color.White)
+                                .size(20.dp)
+                                .border(2.dp, Color.White, RoundedCornerShape(2.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 2.dp, height = 12.dp)
+                                    .background(Color.White)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(
+                        horizontalAlignment = Alignment.Start
+                    ) {
+                        Text(
+                            text = com.example.utils.Localization.get("app_name", lang),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1D1B20)
                         )
+                        Text(
+                            text = com.example.utils.Localization.get("premium_version", lang),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF16A34A)
+                        )
+                    }
+                } else {
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        modifier = Modifier.padding(end = 12.dp)
+                    ) {
+                        Text(
+                            text = com.example.utils.Localization.get("app_name", lang),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1D1B20)
+                        )
+                        Text(
+                            text = com.example.utils.Localization.get("premium_version", lang),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF16A34A) // Premium green
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(Color(0xFF6750A4), Color(0xFF9B88D6))
+                                )
+                            )
+                            .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                            .shadow(1.dp, RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Custom micro repairs screw symbol
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .border(2.dp, Color.White, RoundedCornerShape(2.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 2.dp, height = 12.dp)
+                                    .background(Color.White)
+                            )
+                        }
                     }
                 }
             }
@@ -152,28 +249,31 @@ fun HeaderBrandBar() {
 @Composable
 fun AppMainLayout(viewModel: MainViewModel) {
     var activeScreen by remember { mutableStateOf("DASHBOARD") }
+    var initialDetailsTicket by remember { mutableStateOf<Ticket?>(null) }
     val tickets by viewModel.ticketsState.collectAsState()
+    val allTickets by viewModel.allTicketsState.collectAsState()
+    val settings by viewModel.settingsState.collectAsState()
+    val lang = settings["language"] ?: "ar"
+
+    LaunchedEffect(activeScreen) {
+        if (activeScreen != "TICKET_LIST") {
+            initialDetailsTicket = null
+        }
+    }
 
     Scaffold(
         topBar = {
-            if (activeScreen == "ADD_TICKET") {
-                CenterAlignedTopAppBar(
-                    title = { Text("إنشاء تذكرة جديدة", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary) },
-                    navigationIcon = {
-                        IconButton(onClick = { activeScreen = "TICKET_LIST" }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    )
-                )
+            if (activeScreen == "ADD_TICKET" || activeScreen == "NOTIFICATIONS") {
+                // Handled in sub-screens
             } else {
-                HeaderBrandBar()
+                HeaderBrandBar(
+                    viewModel = viewModel,
+                    onNotificationClick = { activeScreen = "NOTIFICATIONS" }
+                )
             }
         },
         bottomBar = {
-            if (activeScreen != "ADD_TICKET") {
+            if (activeScreen != "ADD_TICKET" && activeScreen != "NOTIFICATIONS") {
                 NavigationBar(
                     containerColor = MaterialTheme.colorScheme.surface,
                     tonalElevation = 8.dp
@@ -182,19 +282,19 @@ fun AppMainLayout(viewModel: MainViewModel) {
                         selected = activeScreen == "DASHBOARD",
                         onClick = { activeScreen = "DASHBOARD" },
                         icon = { Icon(Icons.Default.Dashboard, contentDescription = null) },
-                        label = { Text("المؤشرات", fontWeight = FontWeight.Bold) }
+                        label = { Text(com.example.utils.Localization.get("nav_metrics", lang), fontWeight = FontWeight.Bold) }
                     )
                     NavigationBarItem(
                         selected = activeScreen == "TICKET_LIST",
                         onClick = { activeScreen = "TICKET_LIST" },
                         icon = { Icon(Icons.Default.Build, contentDescription = null) },
-                        label = { Text("التذاكر", fontWeight = FontWeight.Bold) }
+                        label = { Text(com.example.utils.Localization.get("nav_tickets", lang), fontWeight = FontWeight.Bold) }
                     )
                     NavigationBarItem(
                         selected = activeScreen == "SETTINGS",
                         onClick = { activeScreen = "SETTINGS" },
                         icon = { Icon(Icons.Default.Settings, contentDescription = null) },
-                        label = { Text("الإعدادات", fontWeight = FontWeight.Bold) }
+                        label = { Text(com.example.utils.Localization.get("nav_settings", lang), fontWeight = FontWeight.Bold) }
                     )
                 }
             }
@@ -217,17 +317,28 @@ fun AppMainLayout(viewModel: MainViewModel) {
                 .padding(innerPadding)
         ) {
             when (activeScreen) {
-                "DASHBOARD" -> DashboardScreen(viewModel = viewModel, tickets = tickets)
+                "DASHBOARD" -> DashboardScreen(viewModel = viewModel, tickets = allTickets)
                 "TICKET_LIST" -> TicketListScreen(
                     viewModel = viewModel,
                     tickets = tickets,
-                    onAddTicketClicked = { activeScreen = "ADD_TICKET" }
+                    onAddTicketClicked = { activeScreen = "ADD_TICKET" },
+                    initialDetailsTicket = initialDetailsTicket,
+                    onDetailsClosed = { initialDetailsTicket = null }
                 )
                 "ADD_TICKET" -> TicketFormScreen(
                     viewModel = viewModel,
-                    onSuccess = { activeScreen = "TICKET_LIST" }
+                    onSuccess = { activeScreen = "TICKET_LIST" },
+                    onCancel = { activeScreen = "TICKET_LIST" }
                 )
                 "SETTINGS" -> SettingsScreen(viewModel = viewModel)
+                "NOTIFICATIONS" -> NotificationsScreen(
+                    viewModel = viewModel,
+                    onBackClicked = { activeScreen = "DASHBOARD" },
+                    onTicketClick = { ticket ->
+                        initialDetailsTicket = ticket
+                        activeScreen = "TICKET_LIST"
+                    }
+                )
             }
         }
     }

@@ -39,6 +39,8 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+import com.example.utils.Localization
+
 @Composable
 fun DashboardScreen(
     viewModel: MainViewModel,
@@ -47,6 +49,7 @@ fun DashboardScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     val settings by viewModel.settingsState.collectAsState()
     val currency = settings["store_currency"] ?: "د.إ"
+    val lang = settings["language"] ?: "ar"
     
     // Earnings calculation
     val (todayEarnings, weekEarnings, monthEarnings) = remember(tickets) {
@@ -82,14 +85,15 @@ fun DashboardScreen(
             .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
-        horizontalAlignment = Alignment.End
+        horizontalAlignment = if (lang == "fr") Alignment.Start else Alignment.End
     ) {
         Text(
-            text = "لوحة التحكم والإحصائيات",
+            text = Localization.get("dashboard_title", lang),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 12.dp),
+            textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right
         )
 
         // Row of Quick Case stats
@@ -98,18 +102,20 @@ fun DashboardScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             StatsCompactCard(
-                title = "تذاكر نشطة",
+                title = Localization.get("active_tickets_stat", lang),
                 value = activeCount.toString(),
                 icon = Icons.Default.Build,
                 iconColor = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                lang = lang
             )
             StatsCompactCard(
-                title = "تذاكر منتهية",
+                title = Localization.get("completed_tickets_stat", lang),
                 value = completedCount.toString(),
                 icon = Icons.Default.CheckCircle,
                 iconColor = Color(0xFF10B981),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                lang = lang
             )
         }
 
@@ -117,11 +123,12 @@ fun DashboardScreen(
 
         // Financial Statistics Summary header
         Text(
-            text = "إحصائيات الأرباح",
+            text = Localization.get("revenue_stats", lang),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(bottom = 12.dp)
+            modifier = Modifier.padding(bottom = 12.dp),
+            textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right
         )
 
         // The Vibrant 3-Column Grid representing the specific layout requested
@@ -129,7 +136,8 @@ fun DashboardScreen(
             today = todayEarnings,
             week = weekEarnings,
             month = monthEarnings,
-            currency = currency
+            currency = currency,
+            lang = lang
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -147,7 +155,7 @@ fun DashboardScreen(
         val nextTicket = pendingTickets.getOrNull(pendingSkipCount)
 
         Text(
-            text = "التذكرة التالية في قائمة الانتظار",
+            text = Localization.get("next_ticket_queue", lang),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground,
@@ -165,10 +173,10 @@ fun DashboardScreen(
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.End
+                horizontalAlignment = if (lang == "fr") Alignment.Start else Alignment.End
             ) {
                 if (nextTicket != null) {
-                    val statusText = "قيد الانتظار"
+                    val statusText = Localization.get("pending_status", lang)
                     val badgeColor = Color(0xFFFEF3C7)
                     val badgeTextColor = Color(0xFFD97706)
 
@@ -177,12 +185,12 @@ fun DashboardScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Icon buttons on the left
+                        // Icon buttons on the left or direction aware
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Start Service Action Wrench / Play button (برمز تحويلها لقائمة الصيانة)
+                            // Start Service Action Wrench / Play button (بررمز تحويلها لقائمة الصيانة)
                             Box(
                                 modifier = Modifier
                                     .size(36.dp)
@@ -190,19 +198,19 @@ fun DashboardScreen(
                                     .background(MaterialTheme.colorScheme.primaryContainer)
                                     .clickable {
                                         viewModel.updateTicketStatus(nextTicket.id, "IN_PROGRESS")
-                                        android.widget.Toast.makeText(context, "تم تحويل التذكرة #${1000 + nextTicket.id} إلى قائمة الصيانة", android.widget.Toast.LENGTH_SHORT).show()
+                                        android.widget.Toast.makeText(context, String.format(Localization.get("ticket_shifted_to_progress_toast", lang), 1000 + nextTicket.id), android.widget.Toast.LENGTH_SHORT).show()
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = "بدء الصيانة فورياً",
+                                    contentDescription = Localization.get("start_maintenance_action", lang),
                                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
 
-                            // Skip action button (برمز التخطي للتذكرة التي بعدها)
+                            // Skip action button (بررمز التخطي للتذكرة التي بعدها)
                             if (pendingTickets.size > 1) {
                                 Box(
                                     modifier = Modifier
@@ -216,7 +224,7 @@ fun DashboardScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.SkipNext,
-                                        contentDescription = "تخطي للبطاقة التالية",
+                                        contentDescription = Localization.get("skip_to_next_action", lang),
                                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -237,7 +245,7 @@ fun DashboardScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.FirstPage,
-                                        contentDescription = "العودة للتذكرة الأولى",
+                                        contentDescription = Localization.get("reset_to_first_action", lang),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -265,7 +273,7 @@ fun DashboardScreen(
                             }
                             
                             Text(
-                                text = "رقم التذكرة: #TK-${1000 + nextTicket.id}",
+                                text = String.format(Localization.get("ticket_number_label", lang), 1000 + nextTicket.id),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -278,33 +286,37 @@ fun DashboardScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "العميل: ${nextTicket.customerName}",
+                        text = "${Localization.get("client_label_simple", lang)}: ${nextTicket.customerName}",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Right
+                        textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right,
+                        modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "الهاتف: ${nextTicket.customerPhone}",
+                        text = "${Localization.get("phone_label_simple", lang)}: ${nextTicket.customerPhone}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Right
+                        textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right,
+                        modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "الجهاز: ${nextTicket.deviceModel}",
+                        text = "${Localization.get("device_label_simple", lang)}: ${nextTicket.deviceModel}",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Right
+                        textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right,
+                        modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "العطل: ${nextTicket.faultDescription}",
+                        text = "${Localization.get("fault_label_simple", lang)}: ${nextTicket.faultDescription}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Right
+                        textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 } else {
                     Box(
@@ -325,7 +337,7 @@ fun DashboardScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "لا توجد تذاكر معلقة في قائمة الانتظار حالياً 👍",
+                                text = Localization.get("no_pending_tickets_empty", lang),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF10B981),
@@ -346,7 +358,7 @@ fun DashboardScreen(
         val activeMaintenanceTicket = inProgressTickets.firstOrNull()
 
         Text(
-            text = "الجهاز الذي قيد الصيانة حالياً",
+            text = Localization.get("active_maintenance_device", lang),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground,
@@ -364,10 +376,10 @@ fun DashboardScreen(
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.End
+                horizontalAlignment = if (lang == "fr") Alignment.Start else Alignment.End
             ) {
                 if (activeMaintenanceTicket != null) {
-                    val statusText = "قيد الصيانة"
+                    val statusText = Localization.get("in_progress_status", lang)
                     val badgeColor = Color(0xFFDBEAFE) // Clean Light Blue
                     val badgeTextColor = Color(0xFF2563EB) // Clean Royal Blue
 
@@ -389,42 +401,22 @@ fun DashboardScreen(
                                     .background(Color(0xFFDCFCE7)) // Light Green
                                     .clickable {
                                         viewModel.updateTicketStatus(activeMaintenanceTicket.id, "COMPLETED")
-                                        android.widget.Toast.makeText(context, "تم تحويل الجهاز إلى صيانة منتهية وجاهز للتسليم! ✅", android.widget.Toast.LENGTH_SHORT).show()
+                                        
+                                        // Auto queue shift: promote the next PENDING card to IN_PROGRESS
+                                        val nextInQueue = nextTicket
+                                        if (nextInQueue != null) {
+                                            viewModel.updateTicketStatus(nextInQueue.id, "IN_PROGRESS")
+                                        }
+                                        pendingSkipCount = 0
+                                        
+                                        android.widget.Toast.makeText(context, Localization.get("ticket_shifted_to_unclaimed_toast", lang), android.widget.Toast.LENGTH_SHORT).show()
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
-                                    contentDescription = "جاهز للتسليم",
+                                    contentDescription = Localization.get("ready_for_delivery", lang),
                                     tint = Color(0xFF16A34A),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-
-                            // Needs More Time Register Alarm Button (برمز يحتاج وقت)
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFFEF3C7)) // Light Amber
-                                    .clickable {
-                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                            val permission = "android.permission.POST_NOTIFICATIONS"
-                                            if (androidx.core.content.ContextCompat.checkSelfPermission(context, permission) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                                                android.widget.Toast.makeText(context, "⚠️ تنبيه: يرجى تفعيل إذن الإشارات لتلقي هذا التنبيه على شاشتك!", android.widget.Toast.LENGTH_LONG).show()
-                                            }
-                                        }
-                                        val delayMin = settings["maintenance_reminder_delay"]?.toIntOrNull() ?: 10
-                                        val ringtoneUri = settings["maintenance_ringtone_uri"]
-                                        viewModel.scheduleDeviceReminder(activeMaintenanceTicket.id, activeMaintenanceTicket.deviceModel, delayMin, ringtoneUri)
-                                        android.widget.Toast.makeText(context, "⏰ تم ضبط منبه لـ ${activeMaintenanceTicket.deviceModel} بعد $delayMin دقيقة بنجاح!", android.widget.Toast.LENGTH_LONG).show()
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Timer,
-                                    contentDescription = "يحتاج وقت إضافي (تفعيل المنبه)",
-                                    tint = Color(0xFFD97706),
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -450,7 +442,7 @@ fun DashboardScreen(
                             }
                             
                             Text(
-                                text = "رقم التذكرة: #TK-${1000 + activeMaintenanceTicket.id}",
+                                text = String.format(Localization.get("ticket_number_label", lang), 1000 + activeMaintenanceTicket.id),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -463,33 +455,37 @@ fun DashboardScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "العميل: ${activeMaintenanceTicket.customerName}",
+                        text = "${Localization.get("client_label_simple", lang)}: ${activeMaintenanceTicket.customerName}",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Right
+                        textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right,
+                        modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "الهاتف: ${activeMaintenanceTicket.customerPhone}",
+                        text = "${Localization.get("phone_label_simple", lang)}: ${activeMaintenanceTicket.customerPhone}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Right
+                        textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right,
+                        modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "الجهاز: ${activeMaintenanceTicket.deviceModel}",
+                        text = "${Localization.get("device_label_simple", lang)}: ${activeMaintenanceTicket.deviceModel}",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Right
+                        textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right,
+                        modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "العطل: ${activeMaintenanceTicket.faultDescription}",
+                        text = "${Localization.get("fault_label_simple", lang)}: ${activeMaintenanceTicket.faultDescription}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Right
+                        textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 } else {
                     Box(
@@ -510,7 +506,7 @@ fun DashboardScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "لا توجد أجهزة قيد الصيانة النشطة حالياً 👍",
+                                text = Localization.get("no_active_maintenance_empty", lang),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary,
@@ -532,7 +528,7 @@ fun DashboardScreen(
         }
 
         Text(
-            text = "أجهزة منسية طال انتظارها (جاهزة ولم تُستلم)",
+            text = Localization.get("forgotten_devices_shop", lang),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground,
@@ -549,7 +545,7 @@ fun DashboardScreen(
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.End
+                horizontalAlignment = if (lang == "fr") Alignment.Start else Alignment.End
             ) {
                 if (forgottenTickets.isNotEmpty()) {
                     forgottenTickets.forEachIndexed { index, ticket ->
@@ -557,12 +553,20 @@ fun DashboardScreen(
                             val diffMs = System.currentTimeMillis() - ticket.createdAt
                             (diffMs / (1000 * 60 * 60 * 24)).toInt()
                         }
-                        val durationText = when {
-                            daysElapsed == 0 -> "اليوم"
-                            daysElapsed == 1 -> "منذ يوم واحد"
-                            daysElapsed == 2 -> "منذ يومين"
-                            daysElapsed in 3..10 -> "منذ $daysElapsed أيام"
-                            else -> "منذ $daysElapsed يوماً"
+                        val durationText = if (lang == "fr") {
+                            when {
+                                daysElapsed == 0 -> "Aujourd'hui"
+                                daysElapsed == 1 -> "Depuis 1 jour"
+                                else -> "Depuis $daysElapsed jours"
+                            }
+                        } else {
+                            when {
+                                daysElapsed == 0 -> "اليوم"
+                                daysElapsed == 1 -> "منذ يوم واحد"
+                                daysElapsed == 2 -> "منذ يومين"
+                                daysElapsed in 3..10 -> "منذ $daysElapsed أيام"
+                                else -> "منذ $daysElapsed يوماً"
+                            }
                         }
 
                         Row(
@@ -590,27 +594,33 @@ fun DashboardScreen(
 
                             // Ticket & Customer Info on the Right
                             Column(
-                                horizontalAlignment = Alignment.End
+                                horizontalAlignment = if (lang == "fr") Alignment.Start else Alignment.End,
+                                modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
                             ) {
                                 Text(
                                     text = ticket.customerName,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "${ticket.deviceModel} • هاتف: ${ticket.customerPhone}",
+                                    text = "${ticket.deviceModel} • ${Localization.get("phone_label_simple", lang)}: ${ticket.customerPhone}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Right
+                                    textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "المبلغ المتبقي: ${ticket.remainingAmount} $currency",
+                                    text = "${Localization.get("remaining_payment_short", lang)}: ${ticket.remainingAmount} $currency",
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (ticket.remainingAmount > 0) Color(0xFFEF4444) else Color(0xFF10B981)
+                                    color = if (ticket.remainingAmount > 0) Color(0xFFEF4444) else Color(0xFF10B981),
+                                    textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
                         }
@@ -638,7 +648,7 @@ fun DashboardScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "لا توجد أجهزة منسية جاهزة للاستلام حالياً 👍",
+                                text = Localization.get("no_unclaimed_devices_empty", lang),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF10B981),
@@ -669,7 +679,7 @@ fun DashboardScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(onClick = { activeDetailsTicket = null }) {
-                            Icon(Icons.Default.Close, contentDescription = null)
+                            Icon(Icons.Default.Close, contentDescription = Localization.get("close_btn", lang))
                         }
                         IconButton(
                             onClick = {
@@ -679,16 +689,16 @@ fun DashboardScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
-                                contentDescription = "تعديل التذكرة",
+                                contentDescription = Localization.get("edit_ticket_btn", lang),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
                     Text(
-                        text = "تفاصيل تذكرة الصيانة #${currentTicket.id}",
+                        text = String.format(Localization.get("ticket_details_title", lang), currentTicket.id),
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium,
-                        textAlign = TextAlign.Right
+                        textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right
                     )
                 }
             },
@@ -699,10 +709,10 @@ fun DashboardScreen(
                         .heightIn(max = 450.dp)
                         .background(Color.Transparent)
                         .verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.End
+                    horizontalAlignment = if (lang == "fr") Alignment.Start else Alignment.End
                 ) {
                     // Client detail row
-                    DashboardDialogDetailRow("العميل:", currentTicket.customerName)
+                    DashboardDialogDetailRow(Localization.get("client_label_col", lang), currentTicket.customerName, lang = lang)
                     
                     // Clickable Call Row
                     Row(
@@ -715,57 +725,83 @@ fun DashboardScreen(
                                     }
                                     context.startActivity(intent)
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, "فشل بدء المكالمة", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, Localization.get("call_failed_toast", lang), Toast.LENGTH_SHORT).show()
                                 }
                             }
                             .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.End,
+                        horizontalArrangement = if (lang == "fr") Arrangement.Start else Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Call,
-                            contentDescription = "اتصال بالعميل",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = currentTicket.customerPhone,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            textAlign = TextAlign.Right,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "الهاتف:",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Right
-                        )
+                        if (lang == "fr") {
+                            Text(
+                                text = Localization.get("phone_label_col", lang),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Left
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = currentTicket.customerPhone,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                textAlign = TextAlign.Left,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(
+                                imageVector = Icons.Default.Call,
+                                contentDescription = Localization.get("call_client_action", lang),
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Call,
+                                contentDescription = "اتصال بالعميل",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = currentTicket.customerPhone,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                textAlign = TextAlign.Right,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = Localization.get("phone_label_col", lang),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Right
+                            )
+                        }
                     }
 
-                    DashboardDialogDetailRow("نوع وهاتف الجهاز:", currentTicket.deviceModel)
-                    DashboardDialogDetailRow("عطل الجهاز:", currentTicket.faultDescription)
+                    DashboardDialogDetailRow(Localization.get("device_label_col", lang), currentTicket.deviceModel, lang = lang)
+                    DashboardDialogDetailRow(Localization.get("fault_label_col", lang), currentTicket.faultDescription, lang = lang)
                     
                     val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-                    DashboardDialogDetailRow("تاريخ الدخول:", sdf.format(currentTicket.createdAt))
+                    DashboardDialogDetailRow(Localization.get("entry_date_col", lang), sdf.format(currentTicket.createdAt), lang = lang)
 
                     Spacer(modifier = Modifier.height(12.dp))
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Spacer(modifier = Modifier.height(12.dp))
 
                     // Finance block
-                    DashboardDialogDetailRow("السعر الإجمالي للخدمة:", "${currentTicket.totalPrice} $currency")
-                    DashboardDialogDetailRow("المبلغ المدفوع (مقدماً):", "${currentTicket.advancePayment} $currency")
+                    DashboardDialogDetailRow(Localization.get("total_price_col", lang), "${currentTicket.totalPrice} $currency", lang = lang)
+                    DashboardDialogDetailRow(Localization.get("advance_payment_col", lang), "${currentTicket.advancePayment} $currency", lang = lang)
                     
                     val remainingColor = if (currentTicket.remainingAmount > 0) MaterialTheme.colorScheme.error else Color(0xFF10B981)
-                    DashboardDialogDetailRow("المبلغ المتبقي:", "${currentTicket.remainingAmount} $currency", valueColor = remainingColor)
+                    DashboardDialogDetailRow(Localization.get("remaining_payment_col", lang), "${currentTicket.remainingAmount} $currency", valueColor = remainingColor, lang = lang)
 
                     if (currentTicket.notes.isNotEmpty()) {
-                        DashboardDialogDetailRow("ملاحظات وشروط إضافية:", currentTicket.notes)
+                        DashboardDialogDetailRow(Localization.get("additional_notes_col", lang), currentTicket.notes, lang = lang)
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -774,7 +810,7 @@ fun DashboardScreen(
 
                     // Document Photos preview
                     if (currentTicket.frontImagePath != null || currentTicket.backImagePath != null) {
-                        Text("الصور الموثقة للجهاز (انقر لعرضها بالكامل):", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(Localization.get("documented_photos_label", lang), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         Spacer(modifier = Modifier.height(6.dp))
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -811,28 +847,32 @@ fun DashboardScreen(
                     }
 
                     // Modify operations/status section
-                    Text("تغيير حالة الصيانة للتذكرة:", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(Localization.get("change_ticket_status_label", lang), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        DashboardStatusChangeBtn("معلق", currentTicket.status == "PENDING", Modifier.weight(1f)) {
+                        DashboardStatusChangeBtn(Localization.get("btn_pending", lang), currentTicket.status == "PENDING", Modifier.weight(1f)) {
                             viewModel.updateTicketStatus(currentTicket.id, "PENDING")
-                            activeDetailsTicket = currentTicket.copy(status = "PENDING")
+                            activeDetailsTicket = currentTicket.copy(status = "PENDING", partNeededDate = null)
                         }
-                        DashboardStatusChangeBtn("بالصيانة", currentTicket.status == "IN_PROGRESS", Modifier.weight(1f)) {
+                        DashboardStatusChangeBtn(Localization.get("btn_in_progress", lang), currentTicket.status == "IN_PROGRESS", Modifier.weight(1f)) {
                             viewModel.updateTicketStatus(currentTicket.id, "IN_PROGRESS")
-                            activeDetailsTicket = currentTicket.copy(status = "IN_PROGRESS")
+                            activeDetailsTicket = currentTicket.copy(status = "IN_PROGRESS", partNeededDate = null)
                         }
-                        DashboardStatusChangeBtn("جاهز", currentTicket.status == "COMPLETED", Modifier.weight(1f)) {
+                        DashboardStatusChangeBtn(Localization.get("btn_part_needed", lang), currentTicket.status == "PART_NEEDED", Modifier.weight(1f)) {
+                            viewModel.updateTicketStatus(currentTicket.id, "PART_NEEDED")
+                            activeDetailsTicket = currentTicket.copy(status = "PART_NEEDED", partNeededDate = currentTicket.partNeededDate ?: System.currentTimeMillis())
+                        }
+                        DashboardStatusChangeBtn(Localization.get("btn_completed", lang), currentTicket.status == "COMPLETED", Modifier.weight(1f)) {
                             viewModel.updateTicketStatus(currentTicket.id, "COMPLETED")
-                            activeDetailsTicket = currentTicket.copy(status = "COMPLETED")
+                            activeDetailsTicket = currentTicket.copy(status = "COMPLETED", partNeededDate = null)
                         }
-                        DashboardStatusChangeBtn("سلمت", currentTicket.status == "DELIVERED", Modifier.weight(1f)) {
+                        DashboardStatusChangeBtn(Localization.get("btn_delivered", lang), currentTicket.status == "DELIVERED", Modifier.weight(1f)) {
                             viewModel.updateTicketStatus(currentTicket.id, "DELIVERED")
-                            activeDetailsTicket = currentTicket.copy(status = "DELIVERED")
+                            activeDetailsTicket = currentTicket.copy(status = "DELIVERED", partNeededDate = null)
                         }
                     }
                 }
@@ -846,7 +886,7 @@ fun DashboardScreen(
                         // PDF Invoice share
                         Button(
                             onClick = {
-                                val file = PdfUtils.createInvoicePdf(context, currentTicket, storeName, storePhone, currency)
+                                val file = PdfUtils.createInvoicePdf(context, currentTicket, storeName, storePhone, currency, lang)
                                 if (file != null) {
                                     val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
                                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -854,9 +894,9 @@ fun DashboardScreen(
                                         putExtra(Intent.EXTRA_STREAM, uri)
                                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                     }
-                                    context.startActivity(Intent.createChooser(shareIntent, "مشاركة فاتورة صيانة الهاتف"))
+                                    context.startActivity(Intent.createChooser(shareIntent, Localization.get("share_pdf_chooser_title", lang)))
                                 } else {
-                                    Toast.makeText(context, "فشل إنشاء فاتورة PDF الموحدة", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, Localization.get("pdf_generation_failed", lang), Toast.LENGTH_SHORT).show()
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
@@ -865,13 +905,13 @@ fun DashboardScreen(
                         ) {
                             Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("مشاركة PDF", fontSize = 11.sp)
+                            Text(Localization.get("share_pdf_btn", lang), fontSize = 11.sp)
                         }
 
                         // WhatsApp / SMS text details share
                         Button(
                             onClick = {
-                                dashboardShareTicketViaText(context, currentTicket, storeName, currency)
+                                dashboardShareTicketViaText(context, currentTicket, storeName, storePhone, currency, lang)
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)), // WhatsApp Green
                             shape = RoundedCornerShape(10.dp),
@@ -879,7 +919,7 @@ fun DashboardScreen(
                         ) {
                             Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("واتساب / نص", fontSize = 11.sp)
+                            Text(Localization.get("whatsapp_text_btn", lang), fontSize = 11.sp)
                         }
                     }
 
@@ -896,7 +936,7 @@ fun DashboardScreen(
                     ) {
                         Icon(Icons.Default.Delete, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("حذف التذكرة المحددة بصفة نهائية", fontWeight = FontWeight.Bold)
+                        Text(Localization.get("delete_ticket_btn", lang), fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -918,11 +958,11 @@ fun DashboardScreen(
             onDismissRequest = { isEditingTicket = false },
             title = {
                 Text(
-                    text = "تعديل بيانات التذكرة #${editing.id}",
+                    text = String.format(Localization.get("edit_ticket_title_tk", lang), editing.id),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Right
+                    textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right
                 )
             },
             text = {
@@ -931,13 +971,13 @@ fun DashboardScreen(
                         .fillMaxWidth()
                         .heightIn(max = 400.dp)
                         .verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.End,
+                    horizontalAlignment = if (lang == "fr") Alignment.Start else Alignment.End,
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     OutlinedTextField(
                         value = editName,
                         onValueChange = { editName = it },
-                        label = { Text("اسم العميل / الزبون") },
+                        label = { Text(Localization.get("client_name_placeholder", lang)) },
                         singleLine = true,
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -945,7 +985,7 @@ fun DashboardScreen(
                     OutlinedTextField(
                         value = editPhone,
                         onValueChange = { editPhone = it },
-                        label = { Text("رقم الهاتف") },
+                        label = { Text(Localization.get("client_phone_placeholder", lang)) },
                         singleLine = true,
                         shape = RoundedCornerShape(10.dp),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
@@ -954,7 +994,7 @@ fun DashboardScreen(
                     OutlinedTextField(
                         value = editDevice,
                         onValueChange = { editDevice = it },
-                        label = { Text("نوع وموديل الجهاز") },
+                        label = { Text(Localization.get("device_model_placeholder", lang)) },
                         singleLine = true,
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -962,14 +1002,14 @@ fun DashboardScreen(
                     OutlinedTextField(
                         value = editFault,
                         onValueChange = { editFault = it },
-                        label = { Text("تفاصيل عطل الجهاز") },
+                        label = { Text(Localization.get("fault_description_placeholder", lang)) },
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = editPrice,
                         onValueChange = { editPrice = it },
-                        label = { Text("السعر الإجمالي للخدمة") },
+                        label = { Text(Localization.get("total_estimated_cost", lang)) },
                         singleLine = true,
                         shape = RoundedCornerShape(10.dp),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -978,7 +1018,7 @@ fun DashboardScreen(
                     OutlinedTextField(
                         value = editAdvance,
                         onValueChange = { editAdvance = it },
-                        label = { Text("المبلغ المدفوع مقدماً") },
+                        label = { Text(Localization.get("advance_payment", lang)) },
                         singleLine = true,
                         shape = RoundedCornerShape(10.dp),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -987,7 +1027,7 @@ fun DashboardScreen(
                     OutlinedTextField(
                         value = editNotes,
                         onValueChange = { editNotes = it },
-                        label = { Text("ملاحظات وشروط إضافية") },
+                        label = { Text(Localization.get("write_tech_notes", lang)) },
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -1004,7 +1044,7 @@ fun DashboardScreen(
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("إلغاء", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(Localization.get("cancel", lang), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
 
                     Button(
@@ -1032,7 +1072,7 @@ fun DashboardScreen(
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("حفظ التعديلات")
+                        Text(Localization.get("save_changes_btn", lang))
                     }
                 }
             }
@@ -1046,20 +1086,20 @@ fun DashboardScreen(
             onDismissRequest = { ticketToDelete = null },
             title = {
                 Text(
-                    text = "تأكيد الحذف الآمن",
+                    text = Localization.get("delete_confirm_title", lang),
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                     color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Right,
+                    textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right,
                     modifier = Modifier.fillMaxWidth()
                 )
             },
             text = {
                 Text(
-                    text = "هل أنت متأكد تماماً من رغبتك في حذف تذكرة صيانة العميل/الزبون (${targetTicket.customerName}) نهائياً من النظام؟ لا يمكن الرجوع عن هذا الخيار بعد تأكيده.",
+                    text = String.format(Localization.get("delete_confirm_msg", lang), targetTicket.customerName),
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Right,
+                    textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right,
                     modifier = Modifier.fillMaxWidth()
                 )
             },
@@ -1067,21 +1107,21 @@ fun DashboardScreen(
                 TextButton(
                     onClick = { ticketToDelete = null }
                 ) {
-                    Text("إلغاء", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(Localization.get("cancel", lang), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
                         viewModel.deleteTicket(targetTicket)
-                        Toast.makeText(context, "تم حذف تذكرة العميل ${targetTicket.customerName} بنجاح!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, String.format(Localization.get("ticket_deleted_success_toast", lang), targetTicket.customerName), Toast.LENGTH_SHORT).show()
                         ticketToDelete = null
                         activeDetailsTicket = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("نعم، تأكيد الحذف", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(Localization.get("yes_confirm_delete", lang), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
             }
         )
@@ -1140,7 +1180,8 @@ fun VibrantEarningsGrid(
     today: Double,
     week: Double,
     month: Double,
-    currency: String
+    currency: String,
+    lang: String = "ar"
 ) {
     Card(
         shape = RoundedCornerShape(24.dp),
@@ -1150,34 +1191,59 @@ fun VibrantEarningsGrid(
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.End
+            horizontalAlignment = if (lang == "fr") Alignment.Start else Alignment.End
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "مجموع المبيعات والمقدمات",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                if (lang == "fr") {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = Localization.get("revenue_details_title", lang),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     Text(
-                        text = "تفاصيل الأرباح والمداخيل",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        text = Localization.get("total_sales_subtitle", lang),
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
+                } else {
+                    Text(
+                        text = Localization.get("total_sales_subtitle", lang),
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = Localization.get("revenue_details_title", lang),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
             
@@ -1189,7 +1255,7 @@ fun VibrantEarningsGrid(
             ) {
                 // Today
                 GridStatItem(
-                    period = "اليوم",
+                    period = Localization.get("today", lang),
                     value = "${String.format("%.1f", today)} $currency",
                     valueColor = MaterialTheme.colorScheme.primary,
                     borderColor = Color(0xFFF1F5F9),
@@ -1198,7 +1264,7 @@ fun VibrantEarningsGrid(
 
                 // Week
                 GridStatItem(
-                    period = "الأسبوع",
+                    period = Localization.get("this_week", lang),
                     value = "${String.format("%.1f", week)} $currency",
                     valueColor = MaterialTheme.colorScheme.primary,
                     borderColor = Color(0xFFF1F5F9),
@@ -1207,7 +1273,7 @@ fun VibrantEarningsGrid(
 
                 // Month (With vibrant bottom border highlighting like Design HTML)
                 GridStatItem(
-                    period = "الشهر",
+                    period = Localization.get("this_month", lang),
                     value = "${String.format("%.1f", month)} $currency",
                     valueColor = Color(0xFF16A34A), // Rich green
                     borderColor = Color(0xFF86EFAC).copy(alpha = 0.6f),
@@ -1279,7 +1345,8 @@ fun StatsCompactCard(
     value: String,
     icon: ImageVector,
     iconColor: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    lang: String = "ar"
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -1291,7 +1358,7 @@ fun StatsCompactCard(
             modifier = Modifier
                 .padding(14.dp)
                 .fillMaxWidth(),
-            horizontalAlignment = Alignment.End
+            horizontalAlignment = if (lang == "fr") Alignment.Start else Alignment.End
         ) {
             Box(
                 modifier = Modifier
@@ -1441,29 +1508,48 @@ private fun calculateEarnings(tickets: List<Ticket>): Triple<Double, Double, Dou
 }
 
 @Composable
-fun DashboardDialogDetailRow(label: String, value: String, valueColor: Color = MaterialTheme.colorScheme.onSurface) {
+fun DashboardDialogDetailRow(label: String, value: String, valueColor: Color = MaterialTheme.colorScheme.onSurface, lang: String = "ar") {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.End
+        horizontalArrangement = if (lang == "fr") Arrangement.Start else Arrangement.End
     ) {
-        Text(
-            text = value,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            color = valueColor,
-            textAlign = TextAlign.Right,
-            modifier = Modifier.weight(1f)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = label,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Right
-        )
+        if (lang == "fr") {
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Left
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = value,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = valueColor,
+                textAlign = TextAlign.Left,
+                modifier = Modifier.weight(1f)
+            )
+        } else {
+            Text(
+                text = value,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = valueColor,
+                textAlign = TextAlign.Right,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Right
+            )
+        }
     }
 }
 
@@ -1488,39 +1574,39 @@ fun DashboardStatusChangeBtn(
     }
 }
 
-private fun dashboardShareTicketViaText(context: Context, ticket: Ticket, storeName: String, currency: String) {
+private fun dashboardShareTicketViaText(context: Context, ticket: Ticket, storeName: String, storePhone: String, currency: String, lang: String) {
     val statusStr = when(ticket.status) {
-        "PENDING" -> "قيد الانتظار"
-        "IN_PROGRESS" -> "قيد الصيانة"
-        "COMPLETED" -> "تم الانتهاء وجاهز للتسليم"
-        "DELIVERED" -> "تم التسليم ومكتمل الحساب"
+        "PENDING" -> Localization.get("pending_status", lang)
+        "IN_PROGRESS" -> Localization.get("in_progress_status", lang)
+        "PART_NEEDED" -> Localization.get("part_needed_status", lang)
+        "COMPLETED" -> Localization.get("completed_status", lang)
+        "DELIVERED" -> Localization.get("delivered_status", lang)
         else -> ticket.status
     }
     
     val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
     val dateStr = sdf.format(ticket.createdAt)
     
-    val textMessage = """
-        *تذكرة صيانة هاتف رقم (#${ticket.id})*
-        مرحباً بك في $storeName! تفاصيل خدمة صيانة هاتفك أدناه:
-        
-        • تاريخ تسجيل الطلبية: $dateStr
-        • الجهاز: ${ticket.deviceModel}
-        • العطل المحدد: ${ticket.faultDescription}
-        • حالة الجهاز: $statusStr
-        
-        ------------------------------
-        • السعر الكلي: ${ticket.totalPrice} $currency
-        • الدفعة المقدمة: ${ticket.advancePayment} $currency
-        • المتبقي لسداده: ${ticket.remainingAmount} $currency
-        ------------------------------
-        
-        شكرًا لثقتك بنا!
-    """.trimIndent()
+    val template = Localization.get("whatsapp_share_template", lang)
+    val textMessage = String.format(
+        template,
+        ticket.id,
+        storeName,
+        ticket.customerName,
+        ticket.customerPhone,
+        dateStr,
+        ticket.deviceModel,
+        ticket.faultDescription,
+        statusStr,
+        "${ticket.totalPrice} $currency",
+        "${ticket.advancePayment} $currency",
+        "${ticket.remainingAmount} $currency",
+        storePhone
+    )
 
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, textMessage)
     }
-    context.startActivity(Intent.createChooser(intent, "إرسال ومشاركة تفاصيل الصيانة"))
+    context.startActivity(Intent.createChooser(intent, Localization.get("share_btn_text", lang)))
 }

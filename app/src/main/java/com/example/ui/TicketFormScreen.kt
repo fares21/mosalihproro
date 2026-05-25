@@ -41,11 +41,13 @@ import java.io.File
 @Composable
 fun TicketFormScreen(
     viewModel: MainViewModel,
-    onSuccess: () -> Unit
+    onSuccess: () -> Unit,
+    onCancel: () -> Unit
 ) {
     val context = LocalContext.current
     val settings by viewModel.settingsState.collectAsState()
     val currency = settings["store_currency"] ?: "د.إ"
+    val lang = settings["language"] ?: "ar"
     val coroutineScope = rememberCoroutineScope()
 
     // Inputs
@@ -80,13 +82,13 @@ fun TicketFormScreen(
                 if (compressedPath != null) {
                     if (side == "front") {
                         frontImagePath = compressedPath
-                        Toast.makeText(context, "تم التقاط وضغط الصورة الأمامية بنجاح!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, com.example.utils.Localization.get("photo_front_captured_success", lang), Toast.LENGTH_SHORT).show()
                     } else {
                         backImagePath = compressedPath
-                        Toast.makeText(context, "تم التقاط وضغط الصورة الخلفية بنجاح!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, com.example.utils.Localization.get("photo_back_captured_success", lang), Toast.LENGTH_SHORT).show()
                     }
                 } else {
-                    Toast.makeText(context, "فشل ضغط الصورة الملتقطة", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, com.example.utils.Localization.get("photo_compression_failed", lang), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -104,7 +106,7 @@ fun TicketFormScreen(
             tempCameraUri = uri
             cameraLauncher.launch(uri)
         } catch (e: Exception) {
-            Toast.makeText(context, "خطأ في تشغيل الكاميرا: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, String.format(com.example.utils.Localization.get("camera_error", lang), e.message), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -117,17 +119,38 @@ fun TicketFormScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        horizontalAlignment = Alignment.End
     ) {
-        Text(
-            text = "إنشاء تذكرة صيانة جديدة",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 16.dp)
+        // High quality top bar with Back button
+        CenterAlignedTopAppBar(
+            title = {
+                Text(
+                    text = com.example.utils.Localization.get("new_ticket_title", lang),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            },
+            navigationIcon = {
+                IconButton(onClick = onCancel) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = com.example.utils.Localization.get("back_btn", lang)
+                    )
+                }
+            },
+            colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
         )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            horizontalAlignment = if (lang == "fr") Alignment.Start else Alignment.End
+        ) {
 
         // Customer & Device Info Card
         Card(
@@ -138,10 +161,10 @@ fun TicketFormScreen(
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.End
+                horizontalAlignment = if (lang == "fr") Alignment.Start else Alignment.End
             ) {
                 Text(
-                    text = "بيانات العميل والجهاز",
+                    text = com.example.utils.Localization.get("client_device_info", lang),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -151,7 +174,7 @@ fun TicketFormScreen(
                 OutlinedTextField(
                     value = customerName,
                     onValueChange = { customerName = it },
-                    label = { Text("اسم العميل الوقع") },
+                    label = { Text(com.example.utils.Localization.get("client_name_placeholder", lang)) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -162,7 +185,7 @@ fun TicketFormScreen(
                 OutlinedTextField(
                     value = customerPhone,
                     onValueChange = { customerPhone = it },
-                    label = { Text("رقم هاتف العميل للتواصل") },
+                    label = { Text(com.example.utils.Localization.get("client_phone_placeholder", lang)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
@@ -174,7 +197,7 @@ fun TicketFormScreen(
                 OutlinedTextField(
                     value = deviceModel,
                     onValueChange = { deviceModel = it },
-                    label = { Text("موديل الهاتف ومواصفاته") },
+                    label = { Text(com.example.utils.Localization.get("device_model_placeholder", lang)) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -185,7 +208,7 @@ fun TicketFormScreen(
                 OutlinedTextField(
                     value = faultDescription,
                     onValueChange = { faultDescription = it },
-                    label = { Text("تفاصيل العطل الفني والقطع المطلوبة") },
+                    label = { Text(com.example.utils.Localization.get("fault_description_placeholder", lang)) },
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -203,17 +226,17 @@ fun TicketFormScreen(
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.End
+                horizontalAlignment = if (lang == "fr") Alignment.Start else Alignment.End
             ) {
                 Text(
-                    text = "توثيق صور الهاتف (حماية وضغط تلقائي)",
+                    text = com.example.utils.Localization.get("device_photo_documentation", lang),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "* يضغط النظام الصور تلقائياً لتوفير مساحة التخزين الخاصة بالهاتف.",
+                    text = com.example.utils.Localization.get("photo_front_side", lang),
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -258,7 +281,7 @@ fun TicketFormScreen(
                             shape = RoundedCornerShape(10.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("الجهة الخلفية", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(com.example.utils.Localization.get("back_side_label", lang), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -296,7 +319,7 @@ fun TicketFormScreen(
                             shape = RoundedCornerShape(10.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("الجهة الأمامية", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(com.example.utils.Localization.get("front_side_label", lang), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -314,10 +337,10 @@ fun TicketFormScreen(
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.End
+                horizontalAlignment = if (lang == "fr") Alignment.Start else Alignment.End
             ) {
                 Text(
-                    text = "الحساب المالي والمقدم",
+                    text = com.example.utils.Localization.get("fees_cost", lang),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -331,7 +354,7 @@ fun TicketFormScreen(
                     OutlinedTextField(
                         value = advanceInput,
                         onValueChange = { advanceInput = it },
-                        label = { Text("الدفعة المقدمة") },
+                        label = { Text(com.example.utils.Localization.get("advance_payment", lang)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
@@ -341,7 +364,7 @@ fun TicketFormScreen(
                     OutlinedTextField(
                         value = priceInput,
                         onValueChange = { priceInput = it },
-                        label = { Text("سعر الصيانة الإجمالي") },
+                        label = { Text(com.example.utils.Localization.get("total_estimated_cost", lang)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
@@ -358,25 +381,41 @@ fun TicketFormScreen(
                         .clip(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f))
                         .padding(12.dp),
-                    contentAlignment = Alignment.CenterEnd
+                    contentAlignment = if (lang == "fr") Alignment.CenterStart else Alignment.CenterEnd
                 ) {
                     Row(
-                        horizontalArrangement = Arrangement.End,
+                        horizontalArrangement = if (lang == "fr") Arrangement.Start else Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "${String.format("%.2f", remainingAmount)} $currency",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "المبلغ المتبقي المعلق للدفع:",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
+                        if (lang == "fr") {
+                            Text(
+                                text = com.example.utils.Localization.get("remaining_payment", lang),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "${String.format("%.2f", remainingAmount)} $currency",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        } else {
+                            Text(
+                                text = "${String.format("%.2f", remainingAmount)} $currency",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = com.example.utils.Localization.get("remaining_payment", lang),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
                     }
                 }
 
@@ -385,7 +424,7 @@ fun TicketFormScreen(
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
-                    label = { Text("ملاحظات وشروط استثنائية") },
+                    label = { Text(com.example.utils.Localization.get("write_tech_notes", lang)) },
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -394,43 +433,65 @@ fun TicketFormScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Submit Button
-        Button(
-            onClick = {
-                if (customerName.isBlank() || customerPhone.isBlank() || deviceModel.isBlank() || faultDescription.isBlank()) {
-                    Toast.makeText(context, "الرجاء تعبئة الحقول الأساسية لإنشاء التذكرة.", Toast.LENGTH_LONG).show()
-                } else if (totalPrice <= 0) {
-                    Toast.makeText(context, "سعر الصيانة يجب أن يكون أكبر من صفر.", Toast.LENGTH_LONG).show()
-                } else {
-                    viewModel.addTicket(
-                        customerName = customerName.trim(),
-                        customerPhone = customerPhone.trim(),
-                        deviceModel = deviceModel.trim(),
-                        fault = faultDescription.trim(),
-                        price = totalPrice,
-                        advance = advance,
-                        notes = notes.trim(),
-                        signaturePath = null,
-                        frontImage = frontImagePath,
-                        backImage = backImagePath
-                    ) { insertedId ->
-                        // Post-Save
-                        coroutineScope.launch {
-                            Toast.makeText(context, "تم حفظ التذكرة بنجاح برقم #$insertedId", Toast.LENGTH_LONG).show()
-                            onSuccess()
-                        }
-                    }
-                }
-            },
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-            shape = RoundedCornerShape(12.dp),
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp)
+                .padding(top = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Icon(Icons.Default.PostAdd, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("حفظ وتسجيل التذكرة", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            // Cancel Button
+            OutlinedButton(
+                onClick = onCancel,
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(52.dp)
+            ) {
+                Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(com.example.utils.Localization.get("cancel", lang), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+
+            // Submit Button
+            Button(
+                onClick = {
+                    if (customerName.isBlank() || customerPhone.isBlank() || deviceModel.isBlank() || faultDescription.isBlank()) {
+                        Toast.makeText(context, com.example.utils.Localization.get("fill_required_fields", lang), Toast.LENGTH_LONG).show()
+                    } else if (totalPrice <= 0) {
+                        Toast.makeText(context, com.example.utils.Localization.get("price_positive_error", lang), Toast.LENGTH_LONG).show()
+                    } else {
+                        viewModel.addTicket(
+                            customerName = customerName.trim(),
+                            customerPhone = customerPhone.trim(),
+                            deviceModel = deviceModel.trim(),
+                            fault = faultDescription.trim(),
+                            price = totalPrice,
+                            advance = advance,
+                            notes = notes.trim(),
+                            signaturePath = null,
+                            frontImage = frontImagePath,
+                            backImage = backImagePath
+                        ) { insertedId ->
+                            // Post-Save
+                            coroutineScope.launch {
+                                Toast.makeText(context, com.example.utils.Localization.get("save_success_with_id", lang) + insertedId, Toast.LENGTH_LONG).show()
+                                onSuccess()
+                            }
+                        }
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .weight(1.2f)
+                    .height(52.dp)
+            ) {
+                Icon(Icons.Default.PostAdd, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(com.example.utils.Localization.get("save_ticket", lang), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
+}
 }

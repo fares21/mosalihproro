@@ -47,11 +47,14 @@ import java.util.*
 fun TicketListScreen(
     viewModel: MainViewModel,
     tickets: List<Ticket>,
-    onAddTicketClicked: () -> Unit
+    onAddTicketClicked: () -> Unit,
+    initialDetailsTicket: Ticket? = null,
+    onDetailsClosed: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val searchQuery by viewModel.searchQuery.collectAsState()
     val settings by viewModel.settingsState.collectAsState()
+    val lang = settings["language"] ?: "ar"
 
     val storeName = settings["store_name"] ?: "متجر صيانة الهواتف"
     val storePhone = settings["store_phone"] ?: "0500000000"
@@ -69,6 +72,18 @@ fun TicketListScreen(
 
     // Detail Modal State
     var activeDetailsTicket by remember { mutableStateOf<Ticket?>(null) }
+
+    LaunchedEffect(initialDetailsTicket) {
+        if (initialDetailsTicket != null) {
+            activeDetailsTicket = initialDetailsTicket
+        }
+    }
+
+    LaunchedEffect(activeDetailsTicket) {
+        if (activeDetailsTicket == null && initialDetailsTicket != null) {
+            onDetailsClosed()
+        }
+    }
 
     // Edit Dialog States
     var isEditingTicket by remember { mutableStateOf(false) }
@@ -91,12 +106,18 @@ fun TicketListScreen(
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surface)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.End
+            horizontalAlignment = if (lang == "fr") Alignment.Start else Alignment.End
         ) {
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.updateSearchQuery(it) },
-                placeholder = { Text("بحث بالاسم أو الهاتف...", textAlign = TextAlign.Right, fontSize = 13.sp) },
+                placeholder = { 
+                    Text(
+                        text = com.example.utils.Localization.get("search_placeholder", lang), 
+                        textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right, 
+                        fontSize = 13.sp
+                    ) 
+                },
                 trailingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.LightGray) },
                 singleLine = true,
                 shape = RoundedCornerShape(28.dp),
@@ -117,8 +138,9 @@ fun TicketListScreen(
                     "ALL" -> 0
                     "PENDING" -> 1
                     "IN_PROGRESS" -> 2
-                    "COMPLETED" -> 3
-                    "DELIVERED" -> 4
+                    "PART_NEEDED" -> 3
+                    "COMPLETED" -> 4
+                    "DELIVERED" -> 5
                     else -> 0
                 },
                 edgePadding = 0.dp,
@@ -131,8 +153,9 @@ fun TicketListScreen(
                                 "ALL" -> 0
                                 "PENDING" -> 1
                                 "IN_PROGRESS" -> 2
-                                "COMPLETED" -> 3
-                                "DELIVERED" -> 4
+                                "PART_NEEDED" -> 3
+                                "COMPLETED" -> 4
+                                "DELIVERED" -> 5
                                 else -> 0
                             }
                         ]),
@@ -141,19 +164,22 @@ fun TicketListScreen(
                 }
             ) {
                 Tab(selected = selectedFilterTab == "ALL", onClick = { selectedFilterTab = "ALL" }) {
-                    Text("الكل", modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = if (selectedFilterTab == "ALL") MaterialTheme.colorScheme.primary else Color.Gray)
+                    Text(com.example.utils.Localization.get("nav_all", lang).let { if (it == "nav_all") (if (lang == "fr") "Tous" else "الكل") else it }, modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = if (selectedFilterTab == "ALL") MaterialTheme.colorScheme.primary else Color.Gray)
                 }
                 Tab(selected = selectedFilterTab == "PENDING", onClick = { selectedFilterTab = "PENDING" }) {
-                    Text("قيد الانتظار", modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = if (selectedFilterTab == "PENDING") MaterialTheme.colorScheme.primary else Color.Gray)
+                    Text(com.example.utils.Localization.get("status_pending", lang), modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = if (selectedFilterTab == "PENDING") MaterialTheme.colorScheme.primary else Color.Gray)
                 }
                 Tab(selected = selectedFilterTab == "IN_PROGRESS", onClick = { selectedFilterTab = "IN_PROGRESS" }) {
-                    Text("قيد الصيانة", modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = if (selectedFilterTab == "IN_PROGRESS") MaterialTheme.colorScheme.primary else Color.Gray)
+                    Text(com.example.utils.Localization.get("status_inprogress", lang), modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = if (selectedFilterTab == "IN_PROGRESS") MaterialTheme.colorScheme.primary else Color.Gray)
+                }
+                Tab(selected = selectedFilterTab == "PART_NEEDED", onClick = { selectedFilterTab = "PART_NEEDED" }) {
+                    Text(com.example.utils.Localization.get("status_parts", lang), modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = if (selectedFilterTab == "PART_NEEDED") MaterialTheme.colorScheme.primary else Color.Gray)
                 }
                 Tab(selected = selectedFilterTab == "COMPLETED", onClick = { selectedFilterTab = "COMPLETED" }) {
-                    Text("مكتمل", modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = if (selectedFilterTab == "COMPLETED") MaterialTheme.colorScheme.primary else Color.Gray)
+                    Text(com.example.utils.Localization.get("status_completed", lang), modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = if (selectedFilterTab == "COMPLETED") MaterialTheme.colorScheme.primary else Color.Gray)
                 }
                 Tab(selected = selectedFilterTab == "DELIVERED", onClick = { selectedFilterTab = "DELIVERED" }) {
-                    Text("تم التسليم", modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = if (selectedFilterTab == "DELIVERED") MaterialTheme.colorScheme.primary else Color.Gray)
+                    Text(com.example.utils.Localization.get("status_delivered", lang), modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = if (selectedFilterTab == "DELIVERED") MaterialTheme.colorScheme.primary else Color.Gray)
                 }
             }
         }
@@ -175,7 +201,7 @@ fun TicketListScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "لا توجد تذاكر صيانة مطابقة حالياً",
+                        text = com.example.utils.Localization.get("empty_search", lang),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
@@ -193,7 +219,8 @@ fun TicketListScreen(
                     TicketCardItem(
                         ticket = ticket,
                         currency = currency,
-                        onClick = { activeDetailsTicket = ticket }
+                        onClick = { activeDetailsTicket = ticket },
+                        lang = lang
                     )
                 }
             }
@@ -226,16 +253,16 @@ fun TicketListScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
-                                contentDescription = "تعديل التذكرة",
+                                contentDescription = com.example.utils.Localization.get("edit_ticket", lang),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
                     Text(
-                        text = "تفاصيل تذكرة الصيانة #${currentTicket.id}",
+                        text = String.format(com.example.utils.Localization.get("ticket_details_title", lang), currentTicket.id) + " " + currentTicket.id,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium,
-                        textAlign = TextAlign.Right
+                        textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right
                     )
                 }
             },
@@ -246,10 +273,10 @@ fun TicketListScreen(
                         .heightIn(max = 450.dp)
                         .background(Color.Transparent)
                         .verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.End
+                    horizontalAlignment = if (lang == "fr") Alignment.Start else Alignment.End
                 ) {
                     // Client detail row
-                    DialogDetailRow("العميل:", currentTicket.customerName)
+                    DialogDetailRow(com.example.utils.Localization.get("client_label_col", lang), currentTicket.customerName, lang = lang)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -260,56 +287,82 @@ fun TicketListScreen(
                                     }
                                     context.startActivity(intent)
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, "فشل بدء المكالمة", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, com.example.utils.Localization.get("call_failed_toast", lang), Toast.LENGTH_SHORT).show()
                                 }
                             }
                             .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.End,
+                        horizontalArrangement = if (lang == "fr") Arrangement.Start else Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Call,
-                            contentDescription = "اتصال بالعميل",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = currentTicket.customerPhone,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            textAlign = TextAlign.Right,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "الهاتف:",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Right
-                        )
+                        if (lang == "fr") {
+                            Text(
+                                text = com.example.utils.Localization.get("phone_label_col", lang),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Left
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = currentTicket.customerPhone,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                textAlign = TextAlign.Left,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(
+                                imageVector = Icons.Default.Call,
+                                contentDescription = com.example.utils.Localization.get("call_client_action", lang),
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Call,
+                                contentDescription = com.example.utils.Localization.get("call_client_action", lang),
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = currentTicket.customerPhone,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                textAlign = TextAlign.Right,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = com.example.utils.Localization.get("phone_label_col", lang),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Right
+                            )
+                        }
                     }
-                    DialogDetailRow("نوع وهاتف الجهاز:", currentTicket.deviceModel)
-                    DialogDetailRow("عطل الجهاز:", currentTicket.faultDescription)
+                    DialogDetailRow(com.example.utils.Localization.get("device_label_col", lang), currentTicket.deviceModel, lang = lang)
+                    DialogDetailRow(com.example.utils.Localization.get("fault_label_col", lang), currentTicket.faultDescription, lang = lang)
                     
                     val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-                    DialogDetailRow("تاريخ الدخول:", sdf.format(currentTicket.createdAt))
+                    DialogDetailRow(com.example.utils.Localization.get("entry_date_col", lang), sdf.format(currentTicket.createdAt), lang = lang)
 
                     Spacer(modifier = Modifier.height(12.dp))
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Spacer(modifier = Modifier.height(12.dp))
 
                     // Finance block
-                    DialogDetailRow("السعر الإجمالي للخدمة:", "${currentTicket.totalPrice} $currency")
-                    DialogDetailRow("المبلغ المدفوع (مقدماً):", "${currentTicket.advancePayment} $currency")
+                    DialogDetailRow(com.example.utils.Localization.get("total_price_col", lang), "${currentTicket.totalPrice} $currency", lang = lang)
+                    DialogDetailRow(com.example.utils.Localization.get("advance_payment_col", lang), "${currentTicket.advancePayment} $currency", lang = lang)
                     
                     val remainingColor = if (currentTicket.remainingAmount > 0) MaterialTheme.colorScheme.error else Color(0xFF10B981)
-                    DialogDetailRow("المبلغ المتبقي:", "${currentTicket.remainingAmount} $currency", valueColor = remainingColor)
+                    DialogDetailRow(com.example.utils.Localization.get("remaining_payment_col", lang), "${currentTicket.remainingAmount} $currency", valueColor = remainingColor, lang = lang)
 
                     if (currentTicket.notes.isNotEmpty()) {
-                        DialogDetailRow("ملاحظات وشروط إضافية:", currentTicket.notes)
+                        DialogDetailRow(com.example.utils.Localization.get("additional_notes_col", lang), currentTicket.notes, lang = lang)
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -318,7 +371,13 @@ fun TicketListScreen(
 
                     // Document Photos preview
                     if (currentTicket.frontImagePath != null || currentTicket.backImagePath != null) {
-                        Text("الصور الموثقة للجهاز (انقر لعرضها بالكامل):", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(
+                            text = com.example.utils.Localization.get("documented_photos_label", lang), 
+                            fontWeight = FontWeight.Bold, 
+                            fontSize = 13.sp,
+                            textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                         Spacer(modifier = Modifier.height(6.dp))
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -345,28 +404,38 @@ fun TicketListScreen(
                     }
 
                     // Modify operations/status section
-                    Text("تغيير حالة الصيانة للتذكرة:", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(
+                        text = com.example.utils.Localization.get("change_ticket_status_label", lang), 
+                        fontWeight = FontWeight.Bold, 
+                        fontSize = 13.sp,
+                        textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        StatusChangeBtn("معلق", currentTicket.status == "PENDING", Modifier.weight(1f)) {
+                        StatusChangeBtn(com.example.utils.Localization.get("btn_pending", lang), currentTicket.status == "PENDING", Modifier.weight(1f)) {
                             viewModel.updateTicketStatus(currentTicket.id, "PENDING")
-                            activeDetailsTicket = currentTicket.copy(status = "PENDING")
+                            activeDetailsTicket = currentTicket.copy(status = "PENDING", partNeededDate = null)
                         }
-                        StatusChangeBtn("بالصيانة", currentTicket.status == "IN_PROGRESS", Modifier.weight(1f)) {
+                        StatusChangeBtn(com.example.utils.Localization.get("btn_in_progress", lang), currentTicket.status == "IN_PROGRESS", Modifier.weight(1f)) {
                             viewModel.updateTicketStatus(currentTicket.id, "IN_PROGRESS")
-                            activeDetailsTicket = currentTicket.copy(status = "IN_PROGRESS")
+                            activeDetailsTicket = currentTicket.copy(status = "IN_PROGRESS", partNeededDate = null)
                         }
-                        StatusChangeBtn("جاهز", currentTicket.status == "COMPLETED", Modifier.weight(1f)) {
+                        StatusChangeBtn(com.example.utils.Localization.get("btn_part_needed", lang), currentTicket.status == "PART_NEEDED", Modifier.weight(1f)) {
+                            viewModel.updateTicketStatus(currentTicket.id, "PART_NEEDED")
+                            activeDetailsTicket = currentTicket.copy(status = "PART_NEEDED", partNeededDate = currentTicket.partNeededDate ?: System.currentTimeMillis())
+                        }
+                        StatusChangeBtn(com.example.utils.Localization.get("btn_completed", lang), currentTicket.status == "COMPLETED", Modifier.weight(1f)) {
                             viewModel.updateTicketStatus(currentTicket.id, "COMPLETED")
-                            activeDetailsTicket = currentTicket.copy(status = "COMPLETED")
+                            activeDetailsTicket = currentTicket.copy(status = "COMPLETED", partNeededDate = null)
                         }
-                        StatusChangeBtn("سلمت", currentTicket.status == "DELIVERED", Modifier.weight(1f)) {
+                        StatusChangeBtn(com.example.utils.Localization.get("btn_delivered", lang), currentTicket.status == "DELIVERED", Modifier.weight(1f)) {
                             viewModel.updateTicketStatus(currentTicket.id, "DELIVERED")
-                            activeDetailsTicket = currentTicket.copy(status = "DELIVERED")
+                            activeDetailsTicket = currentTicket.copy(status = "DELIVERED", partNeededDate = null)
                         }
                     }
                 }
@@ -380,7 +449,7 @@ fun TicketListScreen(
                         // PDF Invoice share
                         Button(
                             onClick = {
-                                val file = PdfUtils.createInvoicePdf(context, currentTicket, storeName, storePhone, currency)
+                                val file = PdfUtils.createInvoicePdf(context, currentTicket, storeName, storePhone, currency, lang)
                                 if (file != null) {
                                     val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
                                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -388,9 +457,9 @@ fun TicketListScreen(
                                         putExtra(Intent.EXTRA_STREAM, uri)
                                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                     }
-                                    context.startActivity(Intent.createChooser(shareIntent, "مشاركة فاتورة صيانة الهاتف"))
+                                    context.startActivity(Intent.createChooser(shareIntent, com.example.utils.Localization.get("share_pdf_chooser_title", lang)))
                                 } else {
-                                    Toast.makeText(context, "فشل إنشاء فاتورة PDF الموحدة", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, com.example.utils.Localization.get("pdf_generation_failed", lang), Toast.LENGTH_SHORT).show()
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
@@ -399,13 +468,13 @@ fun TicketListScreen(
                         ) {
                             Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("مشاركة PDF", fontSize = 11.sp)
+                            Text(com.example.utils.Localization.get("share_pdf_btn", lang), fontSize = 11.sp)
                         }
 
                         // WhatsApp / SMS text details share
                         Button(
                             onClick = {
-                                shareTicketViaText(context, currentTicket, storeName, currency)
+                                shareTicketViaText(context, currentTicket, storeName, storePhone, currency, lang)
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)), // WhatsApp Green
                             shape = RoundedCornerShape(10.dp),
@@ -413,7 +482,7 @@ fun TicketListScreen(
                         ) {
                             Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("واتساب / نص", fontSize = 11.sp)
+                            Text(com.example.utils.Localization.get("whatsapp_text_btn", lang), fontSize = 11.sp)
                         }
                     }
 
@@ -430,7 +499,7 @@ fun TicketListScreen(
                     ) {
                         Icon(Icons.Default.Delete, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("حذف التذكرة المحددة بصفة نهائية", fontWeight = FontWeight.Bold)
+                        Text(com.example.utils.Localization.get("delete_ticket_btn", lang), fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -451,11 +520,11 @@ fun TicketListScreen(
             onDismissRequest = { isEditingTicket = false },
             title = {
                 Text(
-                    text = "تعديل بيانات التذكرة #${editing.id}",
+                    text = String.format(com.example.utils.Localization.get("edit_ticket_title_tk", lang), editing.id),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Right
+                    textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right
                 )
             },
             text = {
@@ -464,13 +533,13 @@ fun TicketListScreen(
                         .fillMaxWidth()
                         .heightIn(max = 400.dp)
                         .verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.End,
+                    horizontalAlignment = if (lang == "fr") Alignment.Start else Alignment.End,
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     OutlinedTextField(
                         value = editName,
                         onValueChange = { editName = it },
-                        label = { Text("اسم العميل / الزبون") },
+                        label = { Text(com.example.utils.Localization.get("client_name_placeholder", lang)) },
                         singleLine = true,
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -478,7 +547,7 @@ fun TicketListScreen(
                     OutlinedTextField(
                         value = editPhone,
                         onValueChange = { editPhone = it },
-                        label = { Text("رقم الهاتف") },
+                        label = { Text(com.example.utils.Localization.get("client_phone_placeholder", lang)) },
                         singleLine = true,
                         shape = RoundedCornerShape(10.dp),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
@@ -487,7 +556,7 @@ fun TicketListScreen(
                     OutlinedTextField(
                         value = editDevice,
                         onValueChange = { editDevice = it },
-                        label = { Text("نوع وموديل الجهاز") },
+                        label = { Text(com.example.utils.Localization.get("device_model_placeholder", lang)) },
                         singleLine = true,
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -495,14 +564,14 @@ fun TicketListScreen(
                     OutlinedTextField(
                         value = editFault,
                         onValueChange = { editFault = it },
-                        label = { Text("تفاصيل عطل الجهاز") },
+                        label = { Text(com.example.utils.Localization.get("fault_description_placeholder", lang)) },
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = editPrice,
                         onValueChange = { editPrice = it },
-                        label = { Text("السعر الإجمالي للخدمة") },
+                        label = { Text(com.example.utils.Localization.get("total_estimated_cost", lang)) },
                         singleLine = true,
                         shape = RoundedCornerShape(10.dp),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -511,7 +580,7 @@ fun TicketListScreen(
                     OutlinedTextField(
                         value = editAdvance,
                         onValueChange = { editAdvance = it },
-                        label = { Text("المبلغ المدفوع مقدماً") },
+                        label = { Text(com.example.utils.Localization.get("advance_payment", lang)) },
                         singleLine = true,
                         shape = RoundedCornerShape(10.dp),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -520,7 +589,7 @@ fun TicketListScreen(
                     OutlinedTextField(
                         value = editNotes,
                         onValueChange = { editNotes = it },
-                        label = { Text("ملاحظات وشروط إضافية") },
+                        label = { Text(com.example.utils.Localization.get("write_tech_notes", lang)) },
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -537,7 +606,7 @@ fun TicketListScreen(
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("إلغاء", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(com.example.utils.Localization.get("cancel_btn", lang), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
 
                     Button(
@@ -565,7 +634,7 @@ fun TicketListScreen(
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("حفظ التعديلات")
+                        Text(com.example.utils.Localization.get("save_changes_btn", lang))
                     }
                 }
             }
@@ -578,20 +647,20 @@ fun TicketListScreen(
             onDismissRequest = { ticketToDelete = null },
             title = {
                 Text(
-                    text = "تأكيد الحذف الآمن",
+                    text = com.example.utils.Localization.get("delete_confirm_title", lang),
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                     color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Right,
+                    textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right,
                     modifier = Modifier.fillMaxWidth()
                 )
             },
             text = {
                 Text(
-                    text = "هل أنت متأكد تماماً من رغبتك في حذف تذكرة صيانة العميل/الزبون (${targetTicket.customerName}) نهائياً من النظام؟ لا يمكن الرجوع عن هذا الخيار بعد تأكيده.",
+                    text = String.format(com.example.utils.Localization.get("delete_confirm_msg", lang), targetTicket.customerName),
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Right,
+                    textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right,
                     modifier = Modifier.fillMaxWidth()
                 )
             },
@@ -599,21 +668,21 @@ fun TicketListScreen(
                 TextButton(
                     onClick = { ticketToDelete = null }
                 ) {
-                    Text("إلغاء", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(com.example.utils.Localization.get("cancel_btn", lang), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
                         viewModel.deleteTicket(targetTicket)
-                        Toast.makeText(context, "تم حذف تذكرة العميل ${targetTicket.customerName} بنجاح!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, String.format(com.example.utils.Localization.get("ticket_deleted_success_toast", lang), targetTicket.customerName), Toast.LENGTH_SHORT).show()
                         ticketToDelete = null
                         activeDetailsTicket = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("نعم، تأكيد الحذف", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(com.example.utils.Localization.get("yes_confirm_delete", lang), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
             }
         )
@@ -644,11 +713,11 @@ fun TicketListScreen(
                             Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
                         }
                         Text(
-                            text = "عرض الصورة الكاملة",
+                            text = com.example.utils.Localization.get("view_full_image", lang),
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp,
-                            textAlign = TextAlign.Right
+                            textAlign = if (lang == "fr") TextAlign.Left else TextAlign.Right
                         )
                     }
                     AsyncImage(
@@ -680,7 +749,8 @@ fun LocalRenderedImage(file: File) {
 fun TicketCardItem(
     ticket: Ticket,
     currency: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    lang: String = "ar"
 ) {
     val deviceEmoji = remember(ticket.deviceModel, ticket.faultDescription) {
         val combined = (ticket.deviceModel + " " + ticket.faultDescription).lowercase()
@@ -696,16 +766,18 @@ fun TicketCardItem(
     val statusColors = when (ticket.status) {
         "PENDING" -> Pair(Color(0xFFFEF3C7), Color(0xFFD97706)) // Amber
         "IN_PROGRESS" -> Pair(Color(0xFFDBEAFE), Color(0xFF2563EB)) // Blue
+        "PART_NEEDED" -> Pair(Color(0xFFFEE2E2), Color(0xFFEF4444)) // Red for parts needed
         "COMPLETED" -> Pair(Color(0xFFD1FAE5), Color(0xFF059669)) // Green
         "DELIVERED" -> Pair(Color(0xFFF3F4F6), Color(0xFF4B5563)) // Gray
         else -> Pair(Color.LightGray, Color.DarkGray)
     }
 
     val statusText = when (ticket.status) {
-        "PENDING" -> "قيد الانتظار"
-        "IN_PROGRESS" -> "قيد الصيانة"
-        "COMPLETED" -> "تمت الصيانة"
-        "DELIVERED" -> "تم التسليم"
+        "PENDING" -> com.example.utils.Localization.get("status_pending", lang)
+        "IN_PROGRESS" -> com.example.utils.Localization.get("status_inprogress", lang)
+        "PART_NEEDED" -> com.example.utils.Localization.get("status_parts", lang)
+        "COMPLETED" -> com.example.utils.Localization.get("status_completed", lang)
+        "DELIVERED" -> com.example.utils.Localization.get("status_delivered", lang)
         else -> ticket.status
     }
 
@@ -723,145 +795,277 @@ fun TicketCardItem(
                 .padding(16.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.End
+            horizontalArrangement = if (lang == "fr") Arrangement.Start else Arrangement.End
         ) {
-            // Left content of row: Ticket ID and Financials, status, etc. (weighted)
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 12.dp),
-                horizontalAlignment = Alignment.End
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+            if (lang == "fr") {
+                // Left content of row: device status emoji avatar (start)
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            if (deviceEmoji == "🔌") Color(0xFFF1F5F9) else Color(0xFFEFF6FF)
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Status Badge on the left
-                    Box(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(statusColors.first)
-                            .padding(horizontal = 10.dp, vertical = 3.dp)
-                    ) {
-                        Text(
-                            text = statusText,
-                            color = statusColors.second,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    // Client Name on the right
                     Text(
-                        text = ticket.customerName,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Right
+                        text = deviceEmoji,
+                        fontSize = 20.sp
                     )
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
-                // Subtitle: device model - fault description
-                Text(
-                    text = "${ticket.deviceModel} - ${ticket.faultDescription}",
-                    fontSize = 12.sp,
-                    color = Color(0xFF64748B), // Slate info text
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Right
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                // Right content of row: Ticket ID and Financials, status, etc. (end)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.Start
                 ) {
-                    // Pricing status info on Left
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Client Name on the left
                         Text(
-                            text = "${ticket.totalPrice} $currency",
-                            fontSize = 12.sp,
+                            text = ticket.customerName,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Left
                         )
-                        if (ticket.remainingAmount > 0) {
-                            Spacer(modifier = Modifier.width(4.dp))
+
+                        // Status Badge on the right
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(statusColors.first)
+                                .padding(horizontal = 10.dp, vertical = 3.dp)
+                        ) {
                             Text(
-                                text = "(متبقي ${ticket.remainingAmount} $currency)",
+                                text = statusText,
+                                color = statusColors.second,
                                 fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        } else {
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "(مدفوع)",
-                                fontSize = 10.sp,
-                                color = Color(0xFF16A34A)
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
 
-                    // Code / Ticket ID on Right
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Subtitle: device model - fault description
                     Text(
-                        text = "#TK-${1000 + ticket.id}",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF94A3B8), // slate 400
+                        text = "${ticket.deviceModel} - ${ticket.faultDescription}",
+                        fontSize = 12.sp,
+                        color = Color(0xFF64748B), // Slate info text
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Left
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Code / Ticket ID on Left
+                        Text(
+                            text = "#TK-${1000 + ticket.id}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF94A3B8), // slate 400
+                            textAlign = TextAlign.Left
+                        )
+
+                        // Pricing status info on Right
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "${ticket.totalPrice} $currency",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            if (ticket.remainingAmount > 0) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = String.format(com.example.utils.Localization.get("unpaid_label", lang), ticket.remainingAmount.toString(), currency),
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = com.example.utils.Localization.get("paid_label", lang),
+                                    fontSize = 10.sp,
+                                    color = Color(0xFF16A34A)
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Arabic (RTL) Layout
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 12.dp),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Status Badge on the left
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(statusColors.first)
+                                .padding(horizontal = 10.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = statusText,
+                                color = statusColors.second,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        // Client Name on the right
+                        Text(
+                            text = ticket.customerName,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Right
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Subtitle: device model - fault description
+                    Text(
+                        text = "${ticket.deviceModel} - ${ticket.faultDescription}",
+                        fontSize = 12.sp,
+                        color = Color(0xFF64748B), // Slate info text
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Right
                     )
-                }
-            }
 
-            // Right content of row: device status emoji avatar
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(
-                        if (deviceEmoji == "🔌") Color(0xFFF1F5F9) else Color(0xFFEFF6FF)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = deviceEmoji,
-                    fontSize = 20.sp
-                )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Pricing status info on Left
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "${ticket.totalPrice} $currency",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            if (ticket.remainingAmount > 0) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = String.format(com.example.utils.Localization.get("unpaid_label", lang), ticket.remainingAmount.toString(), currency),
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = com.example.utils.Localization.get("paid_label", lang),
+                                    fontSize = 10.sp,
+                                    color = Color(0xFF16A34A)
+                                )
+                            }
+                        }
+
+                        // Code / Ticket ID on Right
+                        Text(
+                            text = "#TK-${1000 + ticket.id}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF94A3B8), // slate 400
+                            textAlign = TextAlign.Right
+                        )
+                    }
+                }
+
+                // Right content of row: device status emoji avatar
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            if (deviceEmoji == "🔌") Color(0xFFF1F5F9) else Color(0xFFEFF6FF)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = deviceEmoji,
+                        fontSize = 20.sp
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun DialogDetailRow(label: String, value: String, valueColor: Color = MaterialTheme.colorScheme.onSurface) {
+fun DialogDetailRow(label: String, value: String, valueColor: Color = MaterialTheme.colorScheme.onSurface, lang: String = "ar") {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.End
+        horizontalArrangement = if (lang == "fr") Arrangement.Start else Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = value,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            color = valueColor,
-            textAlign = TextAlign.Right,
-            modifier = Modifier.weight(1f)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = label,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Right
-        )
+        if (lang == "fr") {
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Left
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = value,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = valueColor,
+                textAlign = TextAlign.Left,
+                modifier = Modifier.weight(1f)
+            )
+        } else {
+            Text(
+                text = value,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = valueColor,
+                textAlign = TextAlign.Right,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Right
+            )
+        }
     }
 }
 
@@ -886,39 +1090,40 @@ fun StatusChangeBtn(
     }
 }
 
-private fun shareTicketViaText(context: Context, ticket: Ticket, storeName: String, currency: String) {
+private fun shareTicketViaText(context: Context, ticket: Ticket, storeName: String, storePhone: String, currency: String, lang: String) {
     val statusStr = when(ticket.status) {
-        "PENDING" -> "قيد الانتظار"
-        "IN_PROGRESS" -> "قيد الصيانة"
-        "COMPLETED" -> "تم الانتهاء وجاهز للتسليم"
-        "DELIVERED" -> "تم التسليم ومكتمل الحساب"
+        "PENDING" -> com.example.utils.Localization.get("status_pending_full_desc", lang)
+        "IN_PROGRESS" -> com.example.utils.Localization.get("status_inprogress_desc", lang)
+        "PART_NEEDED" -> com.example.utils.Localization.get("status_parts_full_desc", lang)
+        "COMPLETED" -> com.example.utils.Localization.get("status_completed_full_desc", lang)
+        "DELIVERED" -> com.example.utils.Localization.get("status_delivered_full_desc", lang)
         else -> ticket.status
     }
     
     val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
     val dateStr = sdf.format(ticket.createdAt)
     
-    val textMessage = """
-        *تذكرة صيانة هاتف رقم (#${ticket.id})*
-        مرحباً بك في $storeName! تفاصيل خدمة صيانة هاتفك أدناه:
-        
-        • تاريخ تسجيل الطلبية: $dateStr
-        • الجهاز: ${ticket.deviceModel}
-        • العطل المحدد: ${ticket.faultDescription}
-        • حالة الجهاز: $statusStr
-        
-        ------------------------------
-        • السعر الكلي: ${ticket.totalPrice} $currency
-        • الدفعة المقدمة: ${ticket.advancePayment} $currency
-        • المتبقي لسداده: ${ticket.remainingAmount} $currency
-        ------------------------------
-        
-        شكرًا لثقتك بنا!
-    """.trimIndent()
+    val template = com.example.utils.Localization.get("whatsapp_share_template", lang)
+    
+    val textMessage = String.format(
+        template,
+        ticket.id.toString(),
+        storeName,
+        ticket.customerName,
+        ticket.customerPhone,
+        dateStr,
+        ticket.deviceModel,
+        ticket.faultDescription,
+        statusStr,
+        "${ticket.totalPrice} $currency",
+        "${ticket.advancePayment} $currency",
+        "${ticket.remainingAmount} $currency",
+        storePhone
+    )
 
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, textMessage)
     }
-    context.startActivity(Intent.createChooser(intent, "إرسال ومشاركة تفاصيل الصيانة"))
+    context.startActivity(Intent.createChooser(intent, com.example.utils.Localization.get("share_dialog_title", lang)))
 }

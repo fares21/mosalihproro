@@ -119,4 +119,7 @@ dependencies {
   debugImplementation(libs.androidx.compose.ui.tooling)
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
+  implementation("androidx.security:security-crypto:1.1.0-alpha06")
 }
+
+

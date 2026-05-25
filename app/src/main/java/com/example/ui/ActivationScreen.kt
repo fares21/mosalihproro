@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.MainViewModel
 import com.example.R
+import com.example.utils.Localization
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,14 +38,18 @@ fun ActivationScreen(
     onActivationSuccess: () -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var isLoading by remember { mutableStateOf(false) }
     val deviceId = viewModel.deviceId
     var keyInput by remember { mutableStateOf("") }
     var errorMsg by remember { mutableStateOf<String?>(null) }
+    val settings by viewModel.settingsState.collectAsState()
+    val lang = settings["language"] ?: "ar"
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("تنشيط التطبيق", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer) },
+                title = { Text(Localization.get("activation_title", lang), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
@@ -77,7 +83,7 @@ fun ActivationScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "مرحباً بك في تطبيق صيانة الهواتف",
+                text = Localization.get("activation_welcome", lang),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
@@ -87,7 +93,7 @@ fun ActivationScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "هذا التطبيق مرخص ويطلب إدخال مفتاح التفعيل عند الفتح لأول مرة.",
+                text = Localization.get("activation_desc", lang),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -109,7 +115,7 @@ fun ActivationScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "معرف الجهاز الخاص بك (DeviceID):",
+                        text = Localization.get("device_id_label", lang),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Bold
@@ -137,7 +143,7 @@ fun ActivationScreen(
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                 val clip = ClipData.newPlainText("Device ID", deviceId)
                                 clipboard.setPrimaryClip(clip)
-                                Toast.makeText(context, "تم نسخ معرف الجهاز!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, Localization.get("device_id_copied", lang), Toast.LENGTH_SHORT).show()
                             }
                         ) {
                             Icon(
@@ -155,11 +161,14 @@ fun ActivationScreen(
             OutlinedTextField(
                 value = keyInput,
                 onValueChange = {
-                    keyInput = it
-                    errorMsg = null
+                    if (!isLoading) {
+                        keyInput = it
+                        errorMsg = null
+                    }
                 },
-                label = { Text("أدخل مفتاح التفعيل") },
-                placeholder = { Text("Base64 Key") },
+                enabled = !isLoading,
+                label = { Text(Localization.get("activation_key_label", lang)) },
+                placeholder = { Text(Localization.get("activation_key_placeholder", lang)) },
                 leadingIcon = { Icon(Icons.Default.Key, contentDescription = null) },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
@@ -183,26 +192,45 @@ fun ActivationScreen(
             Button(
                 onClick = {
                     if (keyInput.isBlank()) {
-                        errorMsg = "الرجاء إدخال مفتاح التفعيل أولاً."
-                    } else {
-                        val activated = viewModel.checkAndSetActivation(keyInput)
-                        if (activated) {
-                            Toast.makeText(context, "تم تنشيط التطبيق بنجاح!", Toast.LENGTH_LONG).show()
-                            onActivationSuccess()
-                        } else {
-                            errorMsg = "مفتاح تفعيل غير صالح أو غير مخصص لهذا الجهاز/السنة."
+                        errorMsg = Localization.get("activation_key_required", lang)
+                    } else if (!isLoading) {
+                        isLoading = true
+                        errorMsg = null
+                        scope.launch {
+                            try {
+                                val activated = viewModel.checkAndSetActivation(keyInput)
+                                isLoading = false
+                                if (activated) {
+                                    Toast.makeText(context, Localization.get("activation_success", lang), Toast.LENGTH_LONG).show()
+                                    onActivationSuccess()
+                                } else {
+                                    errorMsg = Localization.get("activation_key_invalid", lang)
+                                }
+                            } catch (e: Exception) {
+                                isLoading = false
+                                errorMsg = "حدث خطأ أثناء الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت."
+                            }
                         }
                     }
                 },
+                enabled = !isLoading,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
             ) {
-                Icon(Icons.Default.LockOpen, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("تنشيط الآن", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(Icons.Default.LockOpen, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(Localization.get("activate_now", lang), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }

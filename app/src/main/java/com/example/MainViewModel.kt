@@ -44,6 +44,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             initialValue = emptyList()
         )
 
+    // Unfiltered, complete list of tickets specifically for Dashboard / Stats Screen
+    val allTicketsState: StateFlow<List<Ticket>> by lazy {
+        repository.allTickets
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
+    }
+
     // Settings map
     private val _settings = MutableStateFlow<Map<String, String>>(emptyMap())
     val settingsState: StateFlow<Map<String, String>> = _settings.asStateFlow()
@@ -52,16 +62,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val database = AppDatabase.getDatabase(application)
         repository = TicketRepository(database.ticketDao())
 
+        // Load local cache immediately for maximum user interface responsiveness
+        _isActivated.value = LicenseManager.isLocallyVerified(application)
+
         // Collect DB settings
         viewModelScope.launch {
             repository.allSettings.collect { settingsList ->
                 val map = settingsList.associate { it.key to it.value }
                 _settings.value = map
-                
-                // Read and verify activation
-                val key = map["activation_key"] ?: ""
-                _isActivated.value = LicenseManager.verifyActivationKey(application, key)
             }
+        }
+
+        // Run async internet health check/validation automatically
+        viewModelScope.launch {
+            val valid = LicenseManager.runIntegrityCheckRoutine(application)
+            _isActivated.value = valid
         }
         
         // Enforce scheduling WorkManager
@@ -72,16 +87,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _searchQuery.value = query
     }
 
-    fun checkAndSetActivation(key: String): Boolean {
-        return if (LicenseManager.verifyActivationKey(getApplication(), key)) {
-            viewModelScope.launch {
-                repository.saveSetting("activation_key", key)
-                _isActivated.value = true
-            }
-            true
-        } else {
-            false
+    suspend fun checkAndSetActivation(key: String): Boolean {
+        val valid = LicenseManager.executeSecuredInitSequence(getApplication(), key)
+        if (valid) {
+            _isActivated.value = true
         }
+        return valid
     }
 
     fun saveSetting(key: String, value: String) {
@@ -124,6 +135,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 createdAt = System.currentTimeMillis()
             )
             val insertedId = repository.insertTicket(newTicket)
+            
+            // Automatically launch Telegram message sending if configured
+            val botToken = _settings.value["telegram_bot_token"] ?: ""
+            val chatId = _settings.value["telegram_chat_id"] ?: ""
+            if (botToken.isNotBlank() && chatId.isNotBlank()) {
+                val ticketWithId = newTicket.copy(id = insertedId)
+                com.example.utils.TelegramManager.sendNewTicket(ticketWithId, botToken, chatId)
+            }
+            
             onComplete(insertedId)
         }
     }
@@ -132,7 +152,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             val ticket = repository.getTicketById(ticketId)
             if (ticket != null) {
-                repository.updateTicket(ticket.copy(status = newStatus))
+                val updatedTicket = if (newStatus == "PART_NEEDED") {
+                    ticket.copy(
+                        status = newStatus,
+                        partNeededDate = ticket.partNeededDate ?: System.currentTimeMillis()
+                    )
+                } else {
+                    ticket.copy(
+                        status = newStatus,
+                        partNeededDate = null
+                    )
+                }
+                repository.updateTicket(updatedTicket)
             }
         }
     }
@@ -145,27 +176,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun scheduleDeviceReminder(ticketId: Long, deviceModel: String, delayMinutes: Int, ringtoneUri: String?) {
         val context = getApplication<Application>()
-        val workManager = WorkManager.getInstance(context)
-        
-        val uniqueWorkName = "device_reminder_$ticketId"
-        
-        val inputData = Data.Builder()
-            .putLong("ticket_id", ticketId)
-            .putString("device_model", deviceModel)
-            .putString("ringtone_uri", ringtoneUri ?: "")
-            .build()
-        
-        val reminderRequest = OneTimeWorkRequestBuilder<com.example.workers.DeviceReminderWorker>()
-            .setInitialDelay(delayMinutes.toLong(), TimeUnit.MINUTES)
-            .setInputData(inputData)
-            .addTag("device_reminder_tag")
-            .build()
-        
-        workManager.enqueueUniqueWork(
-            uniqueWorkName,
-            ExistingWorkPolicy.REPLACE,
-            reminderRequest
-        )
+        try {
+            val workManager = WorkManager.getInstance(context)
+            val uniqueWorkName = "device_reminder_$ticketId"
+            
+            val inputData = Data.Builder()
+                .putLong("ticket_id", ticketId)
+                .putString("device_model", deviceModel)
+                .putString("ringtone_uri", ringtoneUri ?: "")
+                .build()
+            
+            val reminderRequest = OneTimeWorkRequestBuilder<com.example.workers.DeviceReminderWorker>()
+                .setInitialDelay(delayMinutes.toLong(), TimeUnit.MINUTES)
+                .setInputData(inputData)
+                .addTag("device_reminder_tag")
+                .build()
+            
+            workManager.enqueueUniqueWork(
+                uniqueWorkName,
+                ExistingWorkPolicy.REPLACE,
+                reminderRequest
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     fun deleteTicket(ticket: Ticket) {
@@ -177,42 +211,46 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Schedule WorkManager Background Notification check
     private fun scheduleReminder() {
         val context = getApplication<Application>()
-        val workManager = WorkManager.getInstance(context)
-        
-        // Cancel existing
-        workManager.cancelAllWorkByTag("forgotten_tickets_reminder")
-        
-        val isEnabled = _settings.value["reminder_enabled"]?.toBoolean() ?: true
-        if (!isEnabled) return
+        try {
+            val workManager = WorkManager.getInstance(context)
+            
+            // Cancel existing
+            workManager.cancelAllWorkByTag("forgotten_tickets_reminder")
+            
+            val isEnabled = _settings.value["reminder_enabled"]?.toBoolean() ?: true
+            if (!isEnabled) return
 
-        val hour = _settings.value["reminder_hour"]?.toIntOrNull() ?: 10
-        
-        // Calculate initial delay to run at the specific hour
-        val calendar = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, hour)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
+            val hour = _settings.value["reminder_hour"]?.toIntOrNull() ?: 10
+            
+            // Calculate initial delay to run at the specific hour
+            val calendar = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, hour)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+            }
+            val now = Calendar.getInstance()
+            if (calendar.before(now)) {
+                calendar.add(Calendar.DAY_OF_YEAR, 1) // next day
+            }
+            val delayMinutes = (calendar.timeInMillis - now.timeInMillis) / 1000 / 60
+
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
+                .build()
+
+            val reminderRequest = PeriodicWorkRequestBuilder<ReminderWorker>(24, TimeUnit.HOURS)
+                .setInitialDelay(delayMinutes, TimeUnit.MINUTES)
+                .setConstraints(constraints)
+                .addTag("forgotten_tickets_reminder")
+                .build()
+
+            workManager.enqueueUniquePeriodicWork(
+                "forgotten_tickets_reminder",
+                ExistingPeriodicWorkPolicy.UPDATE,
+                reminderRequest
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
-        val now = Calendar.getInstance()
-        if (calendar.before(now)) {
-            calendar.add(Calendar.DAY_OF_YEAR, 1) // next day
-        }
-        val delayMinutes = (calendar.timeInMillis - now.timeInMillis) / 1000 / 60
-
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
-            .build()
-
-        val reminderRequest = PeriodicWorkRequestBuilder<ReminderWorker>(24, TimeUnit.HOURS)
-            .setInitialDelay(delayMinutes, TimeUnit.MINUTES)
-            .setConstraints(constraints)
-            .addTag("forgotten_tickets_reminder")
-            .build()
-
-        workManager.enqueueUniquePeriodicWork(
-            "forgotten_tickets_reminder",
-            ExistingPeriodicWorkPolicy.UPDATE,
-            reminderRequest
-        )
     }
 }

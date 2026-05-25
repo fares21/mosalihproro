@@ -18,7 +18,8 @@ data class Ticket(
     val frontImagePath: String? = null,
     val backImagePath: String? = null,
     val status: String = "PENDING", // PENDING, IN_PROGRESS, COMPLETED, DELIVERED
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val partNeededDate: Long? = null
 )
 
 @Entity(tableName = "settings")
